@@ -2,17 +2,19 @@
 #include <Arduino_JSON.h>
 #include <Rotary.h>
 #include <Debounce.h>
+#include <EEPROM.h>
 
 LiquidCrystal oled(12, 11, 10, 9, 8, 7, 6, 5, 4, A3);
 Rotary selector = Rotary(2, 3);
 Debounce selectorButton(A2);
 
+const int DEFAULT_EEPROM_ADDRESS 0;
 const byte deviceId = 1;
 boolean screenOn = true;
-int serialTimeout = 2000;
+int serialTimeout = 20000;
 int serialTimeoutOffset = 500;
 int inputTimeout = 1000;
-String idleText = "Volume Mixer";
+String idleText = "Volume Mixer"; 
 
 boolean oldSelectButtonState = false;
 unsigned long buttonTime = 0;
@@ -34,7 +36,15 @@ byte progressBar4[8] = { 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E};
 byte progressBar5[8] = { 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F};
 byte arrow[] = {0x10, 0x18, 0x1C, 0x1E, 0x1C, 0x18, 0x10, 0x00};
 
+struct savedStateEEPROM {
+  int savedSerialTimeout;
+  boolean savedScreenOn; 
+  String savedIdleText; 
+}
+
 void setup() {
+  savedStateEEPROM savedState;
+  EEPROMReadState();
   pinMode(A2, INPUT);
   Serial.begin(115200);
   Serial.setTimeout(20);
@@ -117,6 +127,7 @@ void receiveSerialData() {
                 sendDataLine("*error", "Error in JSON data format");
               }
             }
+            EEPROMSaveState();
             String settingsString = JSON.stringify(settings);
             Serial.println(settingsString);
           }
@@ -311,4 +322,18 @@ byte selectorSpeed() {
   }
   oldSelectorTime = newSelectorTime;
   return selSpeed;
+}
+
+void EEPROMReadState() {
+  EEPROM.get(DEFAULT_EEPROM_ADDRESS, savedState);
+  if (savedState.savedSerialTimeout < 0) {
+    EEPROMSaveState();
+  }
+}
+
+void EEPROMSaveState() {
+  savedState.savedSerialTimeout = serialTimeout;
+  savedState.savedScreenOn = screenOn;
+  savedState.savedIdleText = idleText;
+  EEPROM.put(DEFAULT_EEPROM_ADDRESS, savedState);
 }
