@@ -232,6 +232,7 @@ class Ui_volumeMixerWindow(object):
         self.connectionThread = connectThread(self.volumeMixer, port, self.windowsSettings["baudRate"])
         self.connectionThread.connectionFinished.connect(self.connectionFinished)
         self.connectionThread.connectionError.connect(self.errorHandler)
+        self.connectionThread.finished.connect(self.connectionThread.deleteLater)
         self.connectionThread.start()
     
     def connectionFinished(self):
@@ -245,6 +246,7 @@ class Ui_volumeMixerWindow(object):
         self.updateThread = updateThread(self.volumeMixer)
         self.updateThread.updateError.connect(self.errorHandler)
         self.updateThread.disconnectSignal.connect(lambda: self.disconnect(False))
+        self.updateThread.finished.connect(self.updateThread.deleteLater)
         self.updateThread.start()
 
     def updateSettingsInUi(self):
@@ -286,6 +288,7 @@ class Ui_volumeMixerWindow(object):
         self.settingUpdateThread = settingUpdateThread(self.volumeMixer, settings)
         self.settingUpdateThread.settingError.connect(self.errorHandler)
         self.settingUpdateThread.settingUpdateFinished.connect(self.settingUpdateFinished)
+        self.settingUpdateThread.finished.connect(self.settingUpdateThread.deleteLater)
         self.settingUpdateThread.start()
 
     def settingUpdateFinished(self):
@@ -317,6 +320,34 @@ class Ui_volumeMixerWindow(object):
         #msgbox
         self.WindowsVolumeMixerSettings.saveSettings(self.windowsSettings)
 
+class VolumeMixerTray(QtWidgets.QSystemTrayIcon):
+    def __init__(self, mainWindow):
+        super(VolumeMixerTray, self).__init__()
+        self.mainWindow = mainWindow
+        self.setIcon(QtGui.QIcon("icon.png"))
+        self.menu = QtWidgets.QMenu()
+        self.showAction = QtWidgets.QAction("Show Window", self)
+        self.showAction.triggered.connect(self.showWindow)
+        self.menu.addAction(self.showAction)
+
+        self.quitAction = QtWidgets.QAction("Quit", self)
+        self.quitAction.triggered.connect(self.quitApp)
+        self.menu.addAction(self.quitAction)
+
+        self.setContextMenu(self.menu)
+
+        self.activated.connect(self.showWindow)
+
+    def showWindow(self):
+        self.mainWindow.show()
+
+    def quitApp(self):
+        QApplication.quit()
+
+    #def on_tray_activated(self, reason):
+    #    if reason == QSystemTrayIcon.Trigger:
+    #        main_window.show()
+
 if __name__ == "__main__":
     import sys
     import volumemixer
@@ -325,5 +356,7 @@ if __name__ == "__main__":
     ui = Ui_volumeMixerWindow()
     ui.setupUi(volumeMixerWindow)
     ui.init()
-    volumeMixerWindow.show()
+    trayApp = VolumeMixerTray(volumeMixerWindow)
+    trayApp.show()
+    #volumeMixerWindow.show()
     sys.exit(app.exec_())

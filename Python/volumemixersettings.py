@@ -20,7 +20,6 @@ class VolumeMixerSettings:
                 settings = self.defaultSettings
                 fileSettings = json.load(file)
                 settings.update(fileSettings)
-                print(settings)
                 return settings
         except FileNotFoundError:
             return self.defaultSettings
