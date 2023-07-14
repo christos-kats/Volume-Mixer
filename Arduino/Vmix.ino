@@ -3,19 +3,24 @@
 #include <Rotary.h>
 #include <Debounce.h>
 #include <EEPROM.h>
-#define DEFAULT_EEPROM_ADDRESS 0
 
 LiquidCrystal oled(12, 11, 10, 9, 8, 7, 6, 5, 4, A3);
 Rotary selector = Rotary(2, 3);
 Debounce selectorButton(A2);
 
+// ~~~~EEPROM ADDRESS VALUES~~~~ //
+const int EEPROM_INT_ADDRESS = 0;
+const int EEPROM_BOOL_ADDRESS = EEPROM_INT_ADDRESS + sizeof(int);
+const int EEPROM_STRING_LENGTH_ADDRESS = EEPROM_BOOL_ADDRESS + sizeof(bool);
+const int EEPROM_STRING_ADDRESS = EEPROM_STRING_LENGTH_ADDRESS + sizeof(int);
+
 // ~~~~INITIAL VALUES~~~~ //
 const byte deviceId = 1;
 boolean screenOn = true;
-int serialTimeout = 20000;
+int serialTimeout = 2000;
 int serialTimeoutOffset = 500;
 int inputTimeout = 1000;
-String idleText = "Volume Mixer"; 
+String idleText = "Volume Mixer";
 
 boolean oldSelectButtonState = false;
 unsigned long buttonTime = 0;
@@ -36,14 +41,6 @@ byte progressBar3[8] = { 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C};
 byte progressBar4[8] = { 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E};
 byte progressBar5[8] = { 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F};
 byte arrow[] = {0x10, 0x18, 0x1C, 0x1E, 0x1C, 0x18, 0x10, 0x00};
-
-struct savedStateEEPROM { //STRUCT TO SAVE EEPROM VALUES
-  int savedSerialTimeout;
-  boolean savedScreenOn; 
-  String savedIdleText; 
-};
-
-savedStateEEPROM savedState;
 
 void setup() {
   EEPROMReadState();
@@ -108,6 +105,7 @@ void receiveSerialData() {
               jsonKeyType = JSON.typeof(jsonInput[jsonKeyString]);
               if (jsonKeyString == "serialTimeout" && jsonKeyType == "number") {
                 serialTimeout = jsonInput[jsonKeyString];
+                timeOut = millis() + serialTimeout + serialTimeoutOffset;
                 settings["serialTimeout"] = serialTimeout;
               }
               else if (jsonKeyString == "idleText" && jsonKeyType == "string") {
@@ -123,6 +121,13 @@ void receiveSerialData() {
               }
             }
             EEPROMSaveState();
+            String settingsString = JSON.stringify(settings);
+            Serial.println(settingsString);
+          }
+          else if (command == "clearEEPROM") {
+            JSONVar settings;
+            settings["*confirm"] = "clearEEPROM";
+            clearEEPROM();
             String settingsString = JSON.stringify(settings);
             Serial.println(settingsString);
           }
@@ -329,17 +334,63 @@ void sendBooleanLine(String key, boolean boolValue) {
 // ~~~~EEPROM FUNCS~~~~ //
 
 void EEPROMReadState() {
-  EEPROM.get(DEFAULT_EEPROM_ADDRESS, savedState);
-  serialTimeout = savedState.savedSerialTimeout;
-  screenOn = savedState.savedScreenOn;
-  //idleText = savedState.savedIdleText;
-  if (savedState.savedSerialTimeout == 0xff) EEPROMSaveState();
+  if (EEPROM.read(0) == 0xFF) EEPROMSaveState();
+  else {
+    readData(serialTimeout);
+    readData(screenOn);
+    readData(idleText);
+  }
 }
 
 void EEPROMSaveState() {
-  savedState.savedSerialTimeout = serialTimeout;
-  savedState.savedScreenOn = screenOn;
-  //savedState.savedIdleText = idleText;
-  EEPROM.put(DEFAULT_EEPROM_ADDRESS, savedState);
+  saveData(serialTimeout);
+  saveData(screenOn);
+  saveData(idleText);
 }
 
+void saveData(int data) {
+  EEPROM.put(EEPROM_INT_ADDRESS, data);
+}
+
+void saveData(bool data) {
+  EEPROM.put(EEPROM_BOOL_ADDRESS, data);
+}
+
+void saveData(const String& data) {
+  int length = data.length() + 1;  // Include null character
+  EEPROM.put(EEPROM_STRING_LENGTH_ADDRESS, length);
+  
+  for (int i = 0; i < length; i++) {
+    char character = data.charAt(i);
+    EEPROM.put(EEPROM_STRING_ADDRESS + i, character);
+  }
+}
+
+void readData(int& data) {
+  EEPROM.get(EEPROM_INT_ADDRESS, data);
+}
+
+void readData(bool& data) {
+  EEPROM.get(EEPROM_BOOL_ADDRESS, data);
+}
+
+void readData(String& data) {
+  int length;
+  EEPROM.get(EEPROM_STRING_LENGTH_ADDRESS, length);
+  
+  char buffer[length];
+  
+  for (int i = 0; i < length; i++) {
+    EEPROM.get(EEPROM_STRING_ADDRESS + i, buffer[i]);
+  }
+  
+  data = String(buffer);
+}
+
+void clearEEPROM() {
+  int length = EEPROM.length();
+  
+  for (int i = 0; i < length; i++) {
+    EEPROM.write(i, 0xFF);
+  }
+}
