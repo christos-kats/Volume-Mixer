@@ -192,14 +192,17 @@ class Ui_volumeMixerWindow(object):
         self.actionConnect.setText(_translate("volumeMixerWindow", "Connect"))     
 
     def init(self):
+        # messagebox if not
         self.WindowsVolumeMixerSettings = volumemixersettings.VolumeMixerSettings()
         self.windowsSettings = self.WindowsVolumeMixerSettings.loadSettings()
         self.applyWindowsSettings()
         self.volumeMixer = volumemixer.volumeMixer(self.windowsSettings["supportedHardwareIds"], volumeUpdateInterval=self.windowsSettings["volumeUpdateInterval"], inputTimeout=self.windowsSettings["inputTimeout"])
         self.updateAvailablePortsTimer = QtCore.QTimer()
         self.oldPorts = []
+        self.connectButton.setEnabled(False)
         self.getAvailablePorts()
         self.hardwareSettingsGroupBox.setEnabled(False)
+        self.connectOnStartupCheckBox.setEnabled(False)
         self.applyButton.clicked.connect(self.updateSettings)
         self.connectButton.clicked.connect(self.connectButtonAction)
         self.defaultsButton.clicked.connect(self.updateSettingsInUi)
@@ -212,14 +215,12 @@ class Ui_volumeMixerWindow(object):
         self.startOnStartupCheckBox.clicked.connect(self.updateWindowsSettings)
         self.updateAvailablePortsTimer.setInterval(500)
         self.updateAvailablePortsTimer.start()
-        self.connectButton.setEnabled(False)
         #auto-connect
         
     def getAvailablePorts(self):
         if not(self.volumeMixer.isConnected()):
             ports = self.volumeMixer.getAvailablePorts()
             if not(ports == self.oldPorts):
-                print("ppp")
                 self.connectButton.setEnabled(bool(ports))
                 self.portComboBox.clear()
                 self.portComboBox.addItems(ports)
@@ -240,6 +241,7 @@ class Ui_volumeMixerWindow(object):
         self.statusBar.showMessage("Connected")
         self.portComboBox.setEnabled(False)
         self.hardwareSettingsGroupBox.setEnabled(True)
+        self.connectOnStartupCheckBox.setEnabled(True)
         self.updateThread = updateThread(self.volumeMixer)
         self.updateThread.updateError.connect(self.errorHandler)
         self.updateThread.disconnectSignal.connect(lambda: self.disconnect(False))
@@ -271,6 +273,7 @@ class Ui_volumeMixerWindow(object):
         self.connectButton.setText("Connect")
         self.portComboBox.setEnabled(True)
         self.hardwareSettingsGroupBox.setEnabled(False)
+        self.connectOnStartupCheckBox.setEnabled(False)
     
     def connectButtonAction(self):
         if self.volumeMixer.isConnected():
@@ -311,6 +314,7 @@ class Ui_volumeMixerWindow(object):
         updatedWindowsSettings["onStartup"] = self.startOnStartupCheckBox.isChecked()
         updatedWindowsSettings["startInTray"] = self.startOnTrayCheckBox.isChecked()
         self.windowsSettings.update(updatedWindowsSettings)
+        #msgbox
         self.WindowsVolumeMixerSettings.saveSettings(self.windowsSettings)
 
 if __name__ == "__main__":
