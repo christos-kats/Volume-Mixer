@@ -4,8 +4,7 @@
     ],
     "connectionPort": "",
     "baudRate": 115200,
-    "autoConnect": true,
-    "onStartup": true,
+    "onStartup": false,
     "startInTray": false,
     "inputTimeout": 0.5,
     "volumeUpdateInterval": 0.2

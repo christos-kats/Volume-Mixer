@@ -1,6 +1,5 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from comtypes import CoInitialize, CoUninitialize
-import volumemixersettings
 
 class connectThread(QtCore.QThread):
     connectionFinished = QtCore.pyqtSignal()
@@ -75,16 +74,24 @@ class settingUpdateThread(QtCore.QThread):
         self.settingUpdateFinished.emit()
         
 
-class Ui_volumeMixerWindow(object):
-    def setupUi(self, volumeMixerWindow):
-        volumeMixerWindow.setObjectName("volumeMixerWindow")
+class VolumeMixerWindow(QtWidgets.QMainWindow):
+    visibilityChanged = QtCore.pyqtSignal()
+    errorToTray = QtCore.pyqtSignal(tuple)
+    def __init__(self, windowsVolumeMixerSettings):
+        super(VolumeMixerWindow, self).__init__()
+        self.windowsVolumeMixerSettings = windowsVolumeMixerSettings
+        self.setupUi()
+        self.retranslateUi()
+        #self.init()
+    def setupUi(self):
+        self.setObjectName("volumeMixerWindow")
         self.icon = QtGui.QIcon()
         self.icon.addPixmap(QtGui.QPixmap("icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        volumeMixerWindow.setWindowIcon(self.icon)
-        volumeMixerWindow.setWindowFlags(QtCore.Qt.WindowCloseButtonHint | QtCore.Qt.WindowMinimizeButtonHint)
-        volumeMixerWindow.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
-        volumeMixerWindow.resize(331, 355)
-        self.centralwidget = QtWidgets.QWidget(volumeMixerWindow)
+        self.setWindowIcon(self.icon)
+        self.setWindowFlags(QtCore.Qt.WindowCloseButtonHint | QtCore.Qt.WindowMinimizeButtonHint)
+        self.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+        self.resize(331, 355)
+        self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
         self.verticalLayout.setObjectName("verticalLayout")
@@ -163,18 +170,18 @@ class Ui_volumeMixerWindow(object):
         self.startOnTrayCheckBox.setObjectName("startOnTrayCheckBox")
         self.verticalLayout_4.addWidget(self.startOnTrayCheckBox)
         self.verticalLayout.addWidget(self.windowsSettingsGroupBox)
-        volumeMixerWindow.setCentralWidget(self.centralwidget)
-        self.statusBar = QtWidgets.QStatusBar(volumeMixerWindow)
+        self.setCentralWidget(self.centralwidget)
+        self.statusBar = QtWidgets.QStatusBar(self)
         self.statusBar.setObjectName("statusbar")
-        volumeMixerWindow.setStatusBar(self.statusBar)
-        self.actionConnect = QtWidgets.QAction(volumeMixerWindow)
+        self.setStatusBar(self.statusBar)
+        self.actionConnect = QtWidgets.QAction(self)
         self.actionConnect.setObjectName("actionConnect")
-        self.retranslateUi(volumeMixerWindow)
-        QtCore.QMetaObject.connectSlotsByName(volumeMixerWindow)
+        self.retranslateUi()
+        QtCore.QMetaObject.connectSlotsByName(self)
 
-    def retranslateUi(self, volumeMixerWindow):
+    def retranslateUi(self):
         _translate = QtCore.QCoreApplication.translate
-        volumeMixerWindow.setWindowTitle(_translate("volumeMixerWindow", "Volume Mixer"))
+        self.setWindowTitle(_translate("volumeMixerWindow", "Volume Mixer"))
         self.usbSettingsGroupBox.setTitle(_translate("volumeMixerWindow", "USB Settings"))
         self.portLabel.setText(_translate("volumeMixerWindow", "Port:"))
         self.connectButton.setText(_translate("volumeMixerWindow", "Connect"))
@@ -192,11 +199,10 @@ class Ui_volumeMixerWindow(object):
         self.actionConnect.setText(_translate("volumeMixerWindow", "Connect"))     
 
     def init(self):
-        # messagebox if not
-        self.WindowsVolumeMixerSettings = volumemixersettings.VolumeMixerSettings()
-        self.windowsSettings = self.WindowsVolumeMixerSettings.loadSettings()
+        self.startupHandler = startuphandler.StartupHandler()
+        self.loadWindowsSettings()
         self.applyWindowsSettings()
-        self.volumeMixer = volumemixer.volumeMixer(self.windowsSettings["supportedHardwareIds"], volumeUpdateInterval=self.windowsSettings["volumeUpdateInterval"], inputTimeout=self.windowsSettings["inputTimeout"])
+        self.volumeMixer = volumemixer.volumeMixer(self.windowsVolumeMixerSettings.settings["supportedHardwareIds"], volumeUpdateInterval=self.windowsVolumeMixerSettings.settings["volumeUpdateInterval"], inputTimeout=self.windowsVolumeMixerSettings.settings["inputTimeout"])
         self.updateAvailablePortsTimer = QtCore.QTimer()
         self.oldPorts = []
         self.connectButton.setEnabled(False)
@@ -210,11 +216,14 @@ class Ui_volumeMixerWindow(object):
         self.updateIntervalSpinBox.valueChanged.connect(self.enableButtons)
         self.screenTextLineEdit.textEdited.connect(self.enableButtons)
         self.screenOnCheckBox.clicked.connect(self.enableButtons)
-        self.connectOnStartupCheckBox.clicked.connect(self.updateWindowsSettings)
-        self.startOnTrayCheckBox.clicked.connect(self.updateWindowsSettings)
-        self.startOnStartupCheckBox.clicked.connect(self.updateWindowsSettings)
+        #self.connectOnStartupCheckBox.clicked.connect(self.startOnTrayChanged)
+        self.startOnTrayCheckBox.clicked.connect(self.startOnTrayChanged)
+        self.startOnStartupCheckBox.clicked.connect(self.startOnStartupChanged)
         self.updateAvailablePortsTimer.setInterval(500)
         self.updateAvailablePortsTimer.start()
+        if not self.windowsVolumeMixerSettings.settings["startInTray"]:
+            self.show()
+            self.visibilityChanged.emit()
         #auto-connect
         
     def getAvailablePorts(self):
@@ -229,10 +238,11 @@ class Ui_volumeMixerWindow(object):
     def connect(self):
         port = self.portComboBox.currentText()
         self.statusBar.showMessage("Connecting")
-        self.connectionThread = connectThread(self.volumeMixer, port, self.windowsSettings["baudRate"])
+        self.connectionThread = connectThread(self.volumeMixer, port, self.windowsVolumeMixerSettings.settings["baudRate"])
         self.connectionThread.connectionFinished.connect(self.connectionFinished)
         self.connectionThread.connectionError.connect(self.errorHandler)
         self.connectionThread.finished.connect(self.connectionThread.deleteLater)
+        #finished 
         self.connectionThread.start()
     
     def connectionFinished(self):
@@ -250,7 +260,6 @@ class Ui_volumeMixerWindow(object):
         self.updateThread.start()
 
     def updateSettingsInUi(self):
-        #update?
         self.updateIntervalSpinBox.blockSignals(True)
         self.updateIntervalSpinBox.setValue(self.volumeMixer.hardwareModuleSettings[self.volumeMixer.hardwareModuleUpdateIntervalIdentifier]/1000)
         self.updateIntervalSpinBox.blockSignals(False)
@@ -297,37 +306,75 @@ class Ui_volumeMixerWindow(object):
     
     def errorHandler(self, error):
         self.statusBar.showMessage(error[1]+ ": " + error[2])
-        if error[0]:
-            errorBox = QtWidgets.QMessageBox()
-            errorBox.setWindowIcon(self.icon)
-            errorBox.setIcon(QtWidgets.QMessageBox.Warning)
-            errorBox.setText(error[2])
-            errorBox.setWindowTitle(error[1])
-            errorBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            errorBox.exec()
+        if self.isVisible():
+            if error[0]:
+                errorBox = QtWidgets.QMessageBox()
+                errorBox.setWindowIcon(self.icon)
+                errorBox.setIcon(QtWidgets.QMessageBox.Warning)
+                errorBox.setText(error[2])
+                errorBox.setWindowTitle(error[1])
+                errorBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+                errorBox.exec()
+        else:
+            self.errorToTray.emit(error)
 
     def applyWindowsSettings(self):
-        self.connectOnStartupCheckBox.setChecked(self.windowsSettings["autoConnect"])
-        self.startOnStartupCheckBox.setChecked(self.windowsSettings["onStartup"])
-        self.startOnTrayCheckBox.setChecked(self.windowsSettings["startInTray"])
+        self.connectOnStartupCheckBox.setChecked(self.windowsVolumeMixerSettings.settings["connectionPort"].isalnum())# != "")
+        self.startOnStartupCheckBox.setChecked(self.startupHandler.isOnStartup())
+        self.startOnTrayCheckBox.setChecked(self.windowsVolumeMixerSettings.settings["startInTray"])
 
-    def updateWindowsSettings(self):
-        updatedWindowsSettings = {}
-        updatedWindowsSettings["autoConnect"] = self.connectOnStartupCheckBox.isChecked()
-        updatedWindowsSettings["onStartup"] = self.startOnStartupCheckBox.isChecked()
-        updatedWindowsSettings["startInTray"] = self.startOnTrayCheckBox.isChecked()
-        self.windowsSettings.update(updatedWindowsSettings)
-        #msgbox
-        self.WindowsVolumeMixerSettings.saveSettings(self.windowsSettings)
+    def startOnTrayChanged(self):
+        if not self.changeWindowsSetting("startInTray", self.startOnTrayCheckBox.isChecked()):
+            self.startOnTrayCheckBox.setChecked(not(self.startOnTrayCheckBox.isChecked()))
+
+    def startOnStartupChanged(self):
+        startOnStartupChecked = self.startOnStartupCheckBox.isChecked()
+        if startOnStartupChecked:
+            try:
+                self.startupHandler.addToStartup()
+            except: 
+                startOnStartupChecked = False
+                self.startOnStartupCheckBox.setChecked(startOnStartupChecked)
+                self.errorHandler((True, "Startup setting error", "Failed to add to startup."))
+        else:
+            try:
+                self.startupHandler.removeFromStartup()
+            except:
+                startOnStartupChecked = True
+                self.startOnStartupCheckBox.setChecked(startOnStartupChecked) 
+                self.errorHandler((True, "Startup setting error", "Failed to remove from startup."))
+
+    def changeWindowsSetting(self, settingName, value):
+        try:
+            updatedWindowsSettings = {}
+            updatedWindowsSettings[settingName] = value
+            self.windowsVolumeMixerSettings.settings.update(updatedWindowsSettings)
+            self.windowsVolumeMixerSettings.saveSettings()
+        except Exception as error:
+            self.errorHandler((True, "Setting error", str(error)))
+            return False
+        return True
+    
+    def loadWindowsSettings(self):
+        try:
+            self.windowsVolumeMixerSettings.loadSettings()
+        except Exception as error:
+            self.errorHandler((True, "Setting error", str(error)))
+    
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.visibilityChanged.emit()
 
 class VolumeMixerTray(QtWidgets.QSystemTrayIcon):
-    def __init__(self, mainWindow):
+    def __init__(self,app, mainWindow):
         super(VolumeMixerTray, self).__init__()
+        self.app = app
         self.mainWindow = mainWindow
         self.setIcon(QtGui.QIcon("icon.png"))
         self.menu = QtWidgets.QMenu()
         self.showAction = QtWidgets.QAction("Show Window", self)
-        self.showAction.triggered.connect(self.showWindow)
+        self.showAction.triggered.connect(self.showHideWindow)
         self.menu.addAction(self.showAction)
 
         self.quitAction = QtWidgets.QAction("Quit", self)
@@ -336,27 +383,47 @@ class VolumeMixerTray(QtWidgets.QSystemTrayIcon):
 
         self.setContextMenu(self.menu)
 
-        self.activated.connect(self.showWindow)
+        self.activated.connect(self.onTrayActivated)
+        self.mainWindow.visibilityChanged.connect(self.visibilityChanged)
+        self.mainWindow.errorToTray.connect(self.handleError)
 
-    def showWindow(self):
-        self.mainWindow.show()
+    def showHideWindow(self):
+        if self.mainWindow.isVisible():
+            self.mainWindow.hide()
+        else:
+            self.mainWindow.show()
+        self.visibilityChanged()
+    
+    def onTrayActivated(self, reason):
+        if reason == QtWidgets.QSystemTrayIcon.DoubleClick:
+            self.showHideWindow()
 
     def quitApp(self):
-        QApplication.quit()
+        self.mainWindow.close()
+        self.hide()
+        self.app.quit()
 
-    #def on_tray_activated(self, reason):
-    #    if reason == QSystemTrayIcon.Trigger:
-    #        main_window.show()
+    def visibilityChanged(self):
+        if self.mainWindow.isVisible():
+            self.showAction.setText("Hide window")
+            return
+        self.showAction.setText("Show window")
+    
+    def handleError(self, error):
+        if error[0]:
+            self.showMessage(error[1], error[2], QtWidgets.QSystemTrayIcon.Warning, 5000)
 
 if __name__ == "__main__":
     import sys
     import volumemixer
+    import volumemixersettings
+    import startuphandler
+
     app = QtWidgets.QApplication(sys.argv)
-    volumeMixerWindow = QtWidgets.QMainWindow()
-    ui = Ui_volumeMixerWindow()
-    ui.setupUi(volumeMixerWindow)
-    ui.init()
-    trayApp = VolumeMixerTray(volumeMixerWindow)
+    volumeSetings = volumemixersettings.VolumeMixerSettings()
+    #volumeSetings.loadSettings()
+    volumeMixerWindow = VolumeMixerWindow(volumeSetings)
+    trayApp = VolumeMixerTray(app, volumeMixerWindow)
     trayApp.show()
-    #volumeMixerWindow.show()
+    volumeMixerWindow.init()
     sys.exit(app.exec_())
