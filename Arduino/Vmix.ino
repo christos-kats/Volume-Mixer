@@ -157,7 +157,7 @@ void receiveSerialData() {
   }
 }
 
-// ~~~~SELECTOR USEFUL FUNCS~~~~ //
+// ~~~~SELECTOR FUNCS~~~~ //
 
 void readSelectorButton() { //BUTTON FUNC
   boolean selectButtonState = !selectorButton.read();
