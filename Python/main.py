@@ -1,17 +1,19 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from comtypes import CoInitialize, CoUninitialize
+import volumemixersettings
 
 class connectThread(QtCore.QThread):
     connectionFinished = QtCore.pyqtSignal()
     connectionError = QtCore.pyqtSignal(tuple)
-    def __init__(self,volumeMixer, port, parent = None):
+    def __init__(self,volumeMixer, port, baudRate, parent = None):
         super().__init__(parent=parent)
         self.volumeMixer = volumeMixer
         self.port = port
-
+        self.baudRate = baudRate
+    # den kanei error an einai me lathos baud rate
     def run(self):
         try:
-            self.volumeMixer.connect(self.port, 115200)
+            self.volumeMixer.connect(self.port, self.baudRate)
         except Exception as error:
             self.connectionError.emit((True, "Connection Error", str(error)))
             return
@@ -76,62 +78,91 @@ class settingUpdateThread(QtCore.QThread):
 class Ui_volumeMixerWindow(object):
     def setupUi(self, volumeMixerWindow):
         volumeMixerWindow.setObjectName("volumeMixerWindow")
-        volumeMixerWindow.setFixedSize(331, 355)
         self.icon = QtGui.QIcon()
         self.icon.addPixmap(QtGui.QPixmap("icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         volumeMixerWindow.setWindowIcon(self.icon)
         volumeMixerWindow.setWindowFlags(QtCore.Qt.WindowCloseButtonHint | QtCore.Qt.WindowMinimizeButtonHint)
         volumeMixerWindow.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+        volumeMixerWindow.resize(331, 355)
         self.centralwidget = QtWidgets.QWidget(volumeMixerWindow)
         self.centralwidget.setObjectName("centralwidget")
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setObjectName("verticalLayout")
         self.usbSettingsGroupBox = QtWidgets.QGroupBox(self.centralwidget)
-        self.usbSettingsGroupBox.setGeometry(QtCore.QRect(10, 10, 311, 111))
         self.usbSettingsGroupBox.setObjectName("usbSettingsGroupBox")
-        self.portComboBox = QtWidgets.QComboBox(self.usbSettingsGroupBox)
-        self.portComboBox.setGeometry(QtCore.QRect(10, 40, 191, 28))
-        self.portComboBox.setObjectName("portComboBox")
+        self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.usbSettingsGroupBox)
+        self.verticalLayout_2.setObjectName("verticalLayout_2")
         self.portLabel = QtWidgets.QLabel(self.usbSettingsGroupBox)
-        self.portLabel.setGeometry(QtCore.QRect(10, 20, 55, 16))
         self.portLabel.setObjectName("portLabel")
+        self.verticalLayout_2.addWidget(self.portLabel)
+        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
+        self.portComboBox = QtWidgets.QComboBox(self.usbSettingsGroupBox)
+        self.portComboBox.setObjectName("portComboBox")
+        self.horizontalLayout_3.addWidget(self.portComboBox)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_3)
         self.connectButton = QtWidgets.QPushButton(self.usbSettingsGroupBox)
-        self.connectButton.setGeometry(QtCore.QRect(209, 39, 93, 30))
         self.connectButton.setObjectName("connectButton")
-        self.connectOnStartup = QtWidgets.QCheckBox(self.usbSettingsGroupBox)
-        self.connectOnStartup.setGeometry(QtCore.QRect(10, 80, 141, 20))
-        self.connectOnStartup.setObjectName("connectOnStartup")
+        self.horizontalLayout_3.addWidget(self.connectButton)
+        self.connectOnStartupCheckBox = QtWidgets.QCheckBox(self.usbSettingsGroupBox)
+        self.connectOnStartupCheckBox.setObjectName("connectOnStartupCheckBox")
+        self.verticalLayout_2.addWidget(self.connectOnStartupCheckBox)
+        self.verticalLayout.addWidget(self.usbSettingsGroupBox)
         self.hardwareSettingsGroupBox = QtWidgets.QGroupBox(self.centralwidget)
-        self.hardwareSettingsGroupBox.setGeometry(QtCore.QRect(10, 130, 311, 191))
         self.hardwareSettingsGroupBox.setObjectName("hardwareSettingsGroupBox")
+        self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.hardwareSettingsGroupBox)
+        self.verticalLayout_3.setObjectName("verticalLayout_3")
+        self.horizontalLayout = QtWidgets.QHBoxLayout()
+        self.horizontalLayout.setObjectName("horizontalLayout")
         self.updateIntervalLabel = QtWidgets.QLabel(self.hardwareSettingsGroupBox)
-        self.updateIntervalLabel.setGeometry(QtCore.QRect(10, 30, 101, 21))
         self.updateIntervalLabel.setObjectName("updateIntervalLabel")
-        self.secondsLabel = QtWidgets.QLabel(self.hardwareSettingsGroupBox)
-        self.secondsLabel.setGeometry(QtCore.QRect(170, 30, 55, 21))
-        self.secondsLabel.setObjectName("secondsLabel")
-        self.screenOnCheckBox = QtWidgets.QCheckBox(self.hardwareSettingsGroupBox)
-        self.screenOnCheckBox.setGeometry(QtCore.QRect(10, 60, 171, 21))
-        self.screenOnCheckBox.setObjectName("screenOnCheckBox")
-        self.screenTextLabel = QtWidgets.QLabel(self.hardwareSettingsGroupBox)
-        self.screenTextLabel.setGeometry(QtCore.QRect(10, 90, 121, 21))
-        self.screenTextLabel.setObjectName("screenTextLabel")
-        self.screenTextLineEdit = QtWidgets.QLineEdit(self.hardwareSettingsGroupBox)
-        self.screenTextLineEdit.setGeometry(QtCore.QRect(10, 110, 291, 22))
-        self.screenTextLineEdit.setMaxLength(18)
-        self.screenTextLineEdit.setObjectName("screenTextLineEdit")
-        self.applyButton = QtWidgets.QPushButton(self.hardwareSettingsGroupBox)
-        self.applyButton.setGeometry(QtCore.QRect(10, 150, 93, 28))
-        self.applyButton.setObjectName("applyButton")
-        self.defaultsButton = QtWidgets.QPushButton(self.hardwareSettingsGroupBox)
-        self.defaultsButton.setGeometry(QtCore.QRect(110, 150, 93, 28))
-        self.defaultsButton.setObjectName("defaultsButton")
+        self.horizontalLayout.addWidget(self.updateIntervalLabel)
         self.updateIntervalSpinBox = QtWidgets.QDoubleSpinBox(self.hardwareSettingsGroupBox)
-        self.updateIntervalSpinBox.setGeometry(QtCore.QRect(110, 30, 51, 22))
         self.updateIntervalSpinBox.setDecimals(1)
         self.updateIntervalSpinBox.setMinimum(0.5)
         self.updateIntervalSpinBox.setMaximum(20.0)
         self.updateIntervalSpinBox.setStepType(QtWidgets.QAbstractSpinBox.DefaultStepType)
         self.updateIntervalSpinBox.setProperty("value", 2.0)
         self.updateIntervalSpinBox.setObjectName("updateIntervalSpinBox")
+        self.horizontalLayout.addWidget(self.updateIntervalSpinBox)
+        self.secondsLabel = QtWidgets.QLabel(self.hardwareSettingsGroupBox)
+        self.secondsLabel.setObjectName("secondsLabel")
+        self.horizontalLayout.addWidget(self.secondsLabel)
+        self.verticalLayout_3.addLayout(self.horizontalLayout)
+        self.screenOnCheckBox = QtWidgets.QCheckBox(self.hardwareSettingsGroupBox)
+        self.screenOnCheckBox.setObjectName("screenOnCheckBox")
+        self.verticalLayout_3.addWidget(self.screenOnCheckBox)
+        self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
+        self.screenTextLabel = QtWidgets.QLabel(self.hardwareSettingsGroupBox)
+        self.screenTextLabel.setObjectName("screenTextLabel")
+        self.horizontalLayout_2.addWidget(self.screenTextLabel)
+        self.screenTextLineEdit = QtWidgets.QLineEdit(self.hardwareSettingsGroupBox)
+        self.screenTextLineEdit.setMaxLength(18)
+        self.screenTextLineEdit.setObjectName("screenTextLineEdit")
+        self.horizontalLayout_2.addWidget(self.screenTextLineEdit)
+        self.verticalLayout_3.addLayout(self.horizontalLayout_2)
+        self.buttonLayout = QtWidgets.QHBoxLayout()
+        self.buttonLayout.setObjectName("buttonLayout")
+        self.applyButton = QtWidgets.QPushButton(self.hardwareSettingsGroupBox)
+        self.applyButton.setObjectName("applyButton")
+        self.buttonLayout.addWidget(self.applyButton)
+        self.defaultsButton = QtWidgets.QPushButton(self.hardwareSettingsGroupBox)
+        self.defaultsButton.setObjectName("defaultsButton")
+        self.buttonLayout.addWidget(self.defaultsButton)
+        self.verticalLayout_3.addLayout(self.buttonLayout)
+        self.verticalLayout.addWidget(self.hardwareSettingsGroupBox)
+        self.windowsSettingsGroupBox = QtWidgets.QGroupBox(self.centralwidget)
+        self.windowsSettingsGroupBox.setObjectName("windowsSettingsGroupBox")
+        self.verticalLayout_4 = QtWidgets.QVBoxLayout(self.windowsSettingsGroupBox)
+        self.verticalLayout_4.setObjectName("verticalLayout_4")
+        self.startOnStartupCheckBox = QtWidgets.QCheckBox(self.windowsSettingsGroupBox)
+        self.startOnStartupCheckBox.setObjectName("startOnStartupCheckBox")
+        self.verticalLayout_4.addWidget(self.startOnStartupCheckBox)
+        self.startOnTrayCheckBox = QtWidgets.QCheckBox(self.windowsSettingsGroupBox)
+        self.startOnTrayCheckBox.setObjectName("startOnTrayCheckBox")
+        self.verticalLayout_4.addWidget(self.startOnTrayCheckBox)
+        self.verticalLayout.addWidget(self.windowsSettingsGroupBox)
         volumeMixerWindow.setCentralWidget(self.centralwidget)
         self.statusBar = QtWidgets.QStatusBar(volumeMixerWindow)
         self.statusBar.setObjectName("statusbar")
@@ -147,7 +178,7 @@ class Ui_volumeMixerWindow(object):
         self.usbSettingsGroupBox.setTitle(_translate("volumeMixerWindow", "USB Settings"))
         self.portLabel.setText(_translate("volumeMixerWindow", "Port:"))
         self.connectButton.setText(_translate("volumeMixerWindow", "Connect"))
-        self.connectOnStartup.setText(_translate("volumeMixerWindow", "Connect on startup"))
+        self.connectOnStartupCheckBox.setText(_translate("volumeMixerWindow", "Connect on startup"))
         self.hardwareSettingsGroupBox.setTitle(_translate("volumeMixerWindow", "Hardware Settings"))
         self.updateIntervalLabel.setText(_translate("volumeMixerWindow", "Update Interval:"))
         self.secondsLabel.setText(_translate("volumeMixerWindow", "seconds"))
@@ -155,10 +186,16 @@ class Ui_volumeMixerWindow(object):
         self.screenTextLabel.setText(_translate("volumeMixerWindow", "Screen text on idle:"))
         self.applyButton.setText(_translate("volumeMixerWindow", "Apply"))
         self.defaultsButton.setText(_translate("volumeMixerWindow", "Load defaults"))
-        self.actionConnect.setText(_translate("volumeMixerWindow", "Connect"))
-    
+        self.windowsSettingsGroupBox.setTitle(_translate("volumeMixerWindow", "Windows Settings"))
+        self.startOnStartupCheckBox.setText(_translate("volumeMixerWindow", "Start on Windows startup"))
+        self.startOnTrayCheckBox.setText(_translate("volumeMixerWindow", "Start minimized"))
+        self.actionConnect.setText(_translate("volumeMixerWindow", "Connect"))     
+
     def init(self):
-        self.volumeMixer = volumemixer.volumeMixer([1])
+        self.WindowsVolumeMixerSettings = volumemixersettings.VolumeMixerSettings()
+        self.windowsSettings = self.WindowsVolumeMixerSettings.loadSettings()
+        self.applyWindowsSettings()
+        self.volumeMixer = volumemixer.volumeMixer(self.windowsSettings["supportedHardwareIds"], volumeUpdateInterval=self.windowsSettings["volumeUpdateInterval"], inputTimeout=self.windowsSettings["inputTimeout"])
         self.updateAvailablePortsTimer = QtCore.QTimer()
         self.oldPorts = []
         self.getAvailablePorts()
@@ -170,13 +207,19 @@ class Ui_volumeMixerWindow(object):
         self.updateIntervalSpinBox.valueChanged.connect(self.enableButtons)
         self.screenTextLineEdit.textEdited.connect(self.enableButtons)
         self.screenOnCheckBox.clicked.connect(self.enableButtons)
+        self.connectOnStartupCheckBox.clicked.connect(self.updateWindowsSettings)
+        self.startOnTrayCheckBox.clicked.connect(self.updateWindowsSettings)
+        self.startOnStartupCheckBox.clicked.connect(self.updateWindowsSettings)
         self.updateAvailablePortsTimer.setInterval(500)
         self.updateAvailablePortsTimer.start()
+        self.connectButton.setEnabled(False)
+        #auto-connect
         
     def getAvailablePorts(self):
         if not(self.volumeMixer.isConnected()):
             ports = self.volumeMixer.getAvailablePorts()
             if not(ports == self.oldPorts):
+                print("ppp")
                 self.connectButton.setEnabled(bool(ports))
                 self.portComboBox.clear()
                 self.portComboBox.addItems(ports)
@@ -185,7 +228,7 @@ class Ui_volumeMixerWindow(object):
     def connect(self):
         port = self.portComboBox.currentText()
         self.statusBar.showMessage("Connecting")
-        self.connectionThread = connectThread(self.volumeMixer, port)
+        self.connectionThread = connectThread(self.volumeMixer, port, self.windowsSettings["baudRate"])
         self.connectionThread.connectionFinished.connect(self.connectionFinished)
         self.connectionThread.connectionError.connect(self.errorHandler)
         self.connectionThread.start()
@@ -203,6 +246,7 @@ class Ui_volumeMixerWindow(object):
         self.updateThread.start()
 
     def updateSettingsInUi(self):
+        #update?
         self.updateIntervalSpinBox.blockSignals(True)
         self.updateIntervalSpinBox.setValue(self.volumeMixer.hardwareModuleSettings[self.volumeMixer.hardwareModuleUpdateIntervalIdentifier]/1000)
         self.updateIntervalSpinBox.blockSignals(False)
@@ -227,7 +271,6 @@ class Ui_volumeMixerWindow(object):
         self.connectButton.setText("Connect")
         self.portComboBox.setEnabled(True)
         self.hardwareSettingsGroupBox.setEnabled(False)
-
     
     def connectButtonAction(self):
         if self.volumeMixer.isConnected():
@@ -256,8 +299,19 @@ class Ui_volumeMixerWindow(object):
             errorBox.setWindowTitle(error[1])
             errorBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
             errorBox.exec()
-        
 
+    def applyWindowsSettings(self):
+        self.connectOnStartupCheckBox.setChecked(self.windowsSettings["autoConnect"])
+        self.startOnStartupCheckBox.setChecked(self.windowsSettings["onStartup"])
+        self.startOnTrayCheckBox.setChecked(self.windowsSettings["startInTray"])
+
+    def updateWindowsSettings(self):
+        updatedWindowsSettings = {}
+        updatedWindowsSettings["autoConnect"] = self.connectOnStartupCheckBox.isChecked()
+        updatedWindowsSettings["onStartup"] = self.startOnStartupCheckBox.isChecked()
+        updatedWindowsSettings["startInTray"] = self.startOnTrayCheckBox.isChecked()
+        self.windowsSettings.update(updatedWindowsSettings)
+        self.WindowsVolumeMixerSettings.saveSettings(self.windowsSettings)
 
 if __name__ == "__main__":
     import sys

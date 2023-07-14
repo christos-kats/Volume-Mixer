@@ -1,0 +1,12 @@
+{
+    "supportedHardwareIds": [
+        1
+    ],
+    "connectionPort": "",
+    "baudRate": 115200,
+    "autoConnect": false,
+    "onStartup": true,
+    "startInTray": false,
+    "inputTimeout": 0.5,
+    "volumeUpdateInterval": 0.2
+}
