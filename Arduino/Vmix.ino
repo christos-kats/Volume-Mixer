@@ -64,14 +64,14 @@ void setup() {
 }
 
 void loop() {
-  receiveSerialData();
+  receiveSerialData(); 
   readSelectorButton();
 }
 
 // ~~~~SERIAL COMM FUNC~~~~ //
 
 void receiveSerialData() {
-  if (Serial.available() > 0) {
+  if (Serial.available() > 0) { // OPEN SERIAL COMM 
     String stringInput = Serial.readString();
     JSONVar jsonInput = JSON.parse(stringInput);
     if (JSON.typeof(jsonInput) == "undefined") {
@@ -88,7 +88,7 @@ void receiveSerialData() {
         if (jsonKeyString == "*command") {
           String command;
           command = jsonInput[jsonKeyString];
-          if (command == "loadSettings") {
+          if (command == "loadSettings") { // LOAD SETTINGS COMMAND
             JSONVar settings;
             settings["*deviceId"] = deviceId;
             settings["screenOn"] = screenOn;
@@ -97,7 +97,7 @@ void receiveSerialData() {
             String settingsString = JSON.stringify(settings);
             Serial.println(settingsString);
           }
-          else if (command == "saveSettings") {
+          else if (command == "saveSettings") { // SAVE SETTINGS COMMAND
             JSONVar settings;
             settings["*confirm"] = "saveSettings";
             for (byte jsonKeyIndex = 1; jsonKeyIndex <= jsonKeys; jsonKeyIndex++) {
@@ -124,7 +124,7 @@ void receiveSerialData() {
             String settingsString = JSON.stringify(settings);
             Serial.println(settingsString);
           }
-          else if (command == "clearEEPROM") {
+          else if (command == "clearEEPROM") { // CLEAR EEPROM COMMAND 
             JSONVar settings;
             settings["*confirm"] = "clearEEPROM";
             clearEEPROM();
@@ -195,7 +195,7 @@ void readSelectorButton() { //BUTTON FUNC
   }
 }
 
-byte selectorSpeed() { //SELECTOR FUNC
+byte selectorSpeed() { //SELECTOR SPEED FUNC
   unsigned long newSelectorTime = millis();
   byte selSpeed;
   int timeDifference = newSelectorTime - oldSelectorTime;
@@ -209,7 +209,7 @@ byte selectorSpeed() { //SELECTOR FUNC
   return selSpeed;
 }
 
-ISR(PCINT2_vect) {
+ISR(PCINT2_vect) { // SELECTOR POTENTIOMETER FUNCTIONALITY FUNC
   if (connectedToSerial) {
     unsigned char selectorResult = selector.process();
     if (selectorResult == DIR_CW) {
