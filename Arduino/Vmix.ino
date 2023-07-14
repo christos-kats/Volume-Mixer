@@ -3,12 +3,13 @@
 #include <Rotary.h>
 #include <Debounce.h>
 #include <EEPROM.h>
+#define DEFAULT_EEPROM_ADDRESS 0
 
 LiquidCrystal oled(12, 11, 10, 9, 8, 7, 6, 5, 4, A3);
 Rotary selector = Rotary(2, 3);
 Debounce selectorButton(A2);
 
-const int DEFAULT_EEPROM_ADDRESS 0;
+// ~~~~INITIAL VALUES~~~~ //
 const byte deviceId = 1;
 boolean screenOn = true;
 int serialTimeout = 20000;
@@ -36,14 +37,15 @@ byte progressBar4[8] = { 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E};
 byte progressBar5[8] = { 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F};
 byte arrow[] = {0x10, 0x18, 0x1C, 0x1E, 0x1C, 0x18, 0x10, 0x00};
 
-struct savedStateEEPROM {
+struct savedStateEEPROM { //STRUCT TO SAVE EEPROM VALUES
   int savedSerialTimeout;
   boolean savedScreenOn; 
   String savedIdleText; 
-}
+};
+
+savedStateEEPROM savedState;
 
 void setup() {
-  savedStateEEPROM savedState;
   EEPROMReadState();
   pinMode(A2, INPUT);
   Serial.begin(115200);
@@ -68,6 +70,8 @@ void loop() {
   receiveSerialData();
   readSelectorButton();
 }
+
+// ~~~~SERIAL COMM FUNC~~~~ //
 
 void receiveSerialData() {
   if (Serial.available() > 0) {
@@ -96,9 +100,6 @@ void receiveSerialData() {
             String settingsString = JSON.stringify(settings);
             Serial.println(settingsString);
           }
-          /*else if (command == "volumeAdjust") {
-            sendBooleanLine("*volumeAdjust", volumeAdjust);
-          }*/
           else if (command == "saveSettings") {
             JSONVar settings;
             settings["*confirm"] = "saveSettings";
@@ -112,16 +113,10 @@ void receiveSerialData() {
               else if (jsonKeyString == "idleText" && jsonKeyType == "string") {
                 idleText = jsonInput[jsonKeyString];
                 settings["idleText"] = idleText;
-                //refresh = !connectedToSerial;
               }
-              /*else if (jsonKeyString == "volumeAdjust" && jsonKeyType == "boolean") {
-                volumeAdjust = jsonInput[jsonKeyString];
-                refresh = connectedToSerial;
-              }*/
               else if (jsonKeyString == "screenOn" && jsonKeyType == "boolean") {
                 screenOn = jsonInput[jsonKeyString];
                 settings["screenOn"] = screenOn;
-                //refresh = !connectedToSerial;
               }
               else{
                 sendDataLine("*error", "Error in JSON data format");
@@ -162,7 +157,9 @@ void receiveSerialData() {
   }
 }
 
-void readSelectorButton() {
+// ~~~~SELECTOR USEFUL FUNCS~~~~ //
+
+void readSelectorButton() { //BUTTON FUNC
   boolean selectButtonState = !selectorButton.read();
   if (selectButtonState and !oldSelectButtonState) {
     buttonTime = millis();
@@ -174,7 +171,6 @@ void readSelectorButton() {
     if (buttonTime + buttonThreshold > millis()) {
       if (connectedToSerial) {
         volumeAdjust = !volumeAdjust;
-        //sendBooleanLine("*volumeAdjust", volumeAdjust);
         refreshScreen();
       }
     }
@@ -192,6 +188,20 @@ void readSelectorButton() {
       }
     }
   }
+}
+
+byte selectorSpeed() { //SELECTOR FUNC
+  unsigned long newSelectorTime = millis();
+  byte selSpeed;
+  int timeDifference = newSelectorTime - oldSelectorTime;
+  if (timeDifference < 50) {
+    selSpeed = 3;
+  }
+  else {
+    selSpeed = 1;
+  }
+  oldSelectorTime = newSelectorTime;
+  return selSpeed;
 }
 
 ISR(PCINT2_vect) {
@@ -239,7 +249,10 @@ void muteApp() {
   String dataString = JSON.stringify(data);
   Serial.println(dataString);
 }
-void refreshScreen() {
+
+// ~~~~LCD FUNCS~~~~ //
+
+void refreshScreen() { //REFRESH LCD FOR DISPLAYING OTHER TEXT
   if (connectedToSerial) {
     centerOnScreen(app, !volumeAdjust, 0, 20);
     if (mute) {
@@ -257,7 +270,7 @@ void refreshScreen() {
   }
 }
 
-void centerOnScreen(String text, boolean specialChar, byte row, byte screenWidth) {
+void centerOnScreen(String text, boolean specialChar, byte row, byte screenWidth) { //LCD CENTER TEXT FUNC
   String fillString = "";
   oled.setCursor(0, row);
   if (specialChar) {
@@ -275,7 +288,7 @@ void centerOnScreen(String text, boolean specialChar, byte row, byte screenWidth
   }
 }
 
-void progressBar(byte percentage, byte row) {
+void progressBar(byte percentage, byte row) { //LCD PROGRESS BAR FUNC
   byte filledBlocks = percentage / 5;
   byte lastBlock = percentage % 5;
   oled.setCursor(0, row);
@@ -290,7 +303,9 @@ void progressBar(byte percentage, byte row) {
   }
 }
 
-void sendDataLine(String key, String text) {
+// ~~~~PRINT DATA TO STREAM~~~~ //
+
+void sendDataLine(String key, String text) { 
   JSONVar data;
   data[key] = text;
   String dataString = JSON.stringify(data);
@@ -303,6 +318,7 @@ void sendNumberLine(String key, int number) {
   String dataString = JSON.stringify(data);
   Serial.println(dataString);
 }
+
 void sendBooleanLine(String key, boolean boolValue) {
   JSONVar data;
   data[key] = boolValue;
@@ -310,30 +326,20 @@ void sendBooleanLine(String key, boolean boolValue) {
   Serial.println(dataString);
 }
 
-byte selectorSpeed() {
-  unsigned long newSelectorTime = millis();
-  byte selSpeed;
-  int timeDifference = newSelectorTime - oldSelectorTime;
-  if (timeDifference < 50) {
-    selSpeed = 3;
-  }
-  else {
-    selSpeed = 1;
-  }
-  oldSelectorTime = newSelectorTime;
-  return selSpeed;
-}
+// ~~~~EEPROM FUNCS~~~~ //
 
 void EEPROMReadState() {
   EEPROM.get(DEFAULT_EEPROM_ADDRESS, savedState);
-  if (savedState.savedSerialTimeout < 0) {
-    EEPROMSaveState();
-  }
+  serialTimeout = savedState.savedSerialTimeout;
+  screenOn = savedState.savedScreenOn;
+  //idleText = savedState.savedIdleText;
+  if (savedState.savedSerialTimeout == 0xff) EEPROMSaveState();
 }
 
 void EEPROMSaveState() {
   savedState.savedSerialTimeout = serialTimeout;
   savedState.savedScreenOn = screenOn;
-  savedState.savedIdleText = idleText;
+  //savedState.savedIdleText = idleText;
   EEPROM.put(DEFAULT_EEPROM_ADDRESS, savedState);
 }
+
