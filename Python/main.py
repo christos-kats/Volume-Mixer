@@ -82,7 +82,7 @@ class VolumeMixerWindow(QtWidgets.QMainWindow):
         self.windowsVolumeMixerSettings = windowsVolumeMixerSettings
         self.setupUi()
         self.retranslateUi()
-        #self.init()
+
     def setupUi(self):
         self.setObjectName("volumeMixerWindow")
         self.icon = QtGui.QIcon()
@@ -201,50 +201,62 @@ class VolumeMixerWindow(QtWidgets.QMainWindow):
     def init(self):
         self.startupHandler = startuphandler.StartupHandler()
         self.loadWindowsSettings()
-        self.applyWindowsSettings()
         self.volumeMixer = volumemixer.volumeMixer(self.windowsVolumeMixerSettings.settings["supportedHardwareIds"], volumeUpdateInterval=self.windowsVolumeMixerSettings.settings["volumeUpdateInterval"], inputTimeout=self.windowsVolumeMixerSettings.settings["inputTimeout"])
         self.updateAvailablePortsTimer = QtCore.QTimer()
-        self.oldPorts = []
+        self.ports = []
         self.connectButton.setEnabled(False)
-        self.getAvailablePorts()
         self.hardwareSettingsGroupBox.setEnabled(False)
-        self.connectOnStartupCheckBox.setEnabled(False)
         self.applyButton.clicked.connect(self.updateSettings)
         self.connectButton.clicked.connect(self.connectButtonAction)
+        self.portComboBox.currentTextChanged.connect(self.setConnectOnStartupChecked)
         self.defaultsButton.clicked.connect(self.updateSettingsInUi)
         self.updateAvailablePortsTimer.timeout.connect(self.getAvailablePorts)
         self.updateIntervalSpinBox.valueChanged.connect(self.enableButtons)
         self.screenTextLineEdit.textEdited.connect(self.enableButtons)
         self.screenOnCheckBox.clicked.connect(self.enableButtons)
-        #self.connectOnStartupCheckBox.clicked.connect(self.startOnTrayChanged)
+        self.connectOnStartupCheckBox.clicked.connect(self.connectOnstartupChanged)
         self.startOnTrayCheckBox.clicked.connect(self.startOnTrayChanged)
         self.startOnStartupCheckBox.clicked.connect(self.startOnStartupChanged)
         self.updateAvailablePortsTimer.setInterval(500)
-        self.updateAvailablePortsTimer.start()
-        if not self.windowsVolumeMixerSettings.settings["startInTray"]:
-            self.show()
-            self.visibilityChanged.emit()
-        #auto-connect
+        self.getAvailablePorts()
+        self.applyWindowsSettings()
         
     def getAvailablePorts(self):
         if not(self.volumeMixer.isConnected()):
             ports = self.volumeMixer.getAvailablePorts()
-            if not(ports == self.oldPorts):
-                self.connectButton.setEnabled(bool(ports))
+            if not(ports == self.ports):
+                self.ports = ports
+                self.connectButton.setEnabled(bool(self.ports))
                 self.portComboBox.clear()
-                self.portComboBox.addItems(ports)
-            self.oldPorts = ports
+                for port in self.ports:
+                    self.portComboBox.addItem(port.description)
+    #not here
+    def getPort(self, portAttribute):
+        for port in self.ports:
+            if port.description == portAttribute or portAttribute == port.serial_number:
+                return port
+        return None
+    
+    def connectButtonAction(self):
+        if self.volumeMixer.isConnected():
+            self.disconnect()
+        else:
+            self.connect()
 
     def connect(self):
-        port = self.portComboBox.currentText()
+        portDescription = self.portComboBox.currentText()
+        port = self.getPort(portDescription).name
         self.statusBar.showMessage("Connecting")
         self.connectionThread = connectThread(self.volumeMixer, port, self.windowsVolumeMixerSettings.settings["baudRate"])
         self.connectionThread.connectionFinished.connect(self.connectionFinished)
-        self.connectionThread.connectionError.connect(self.errorHandler)
+        self.connectionThread.connectionError.connect(self.connectionError)
         self.connectionThread.finished.connect(self.connectionThread.deleteLater)
-        #finished 
         self.connectionThread.start()
-    
+
+    def connectionError(self, error):
+        self.errorHandler(error)
+        self.updateAvailablePortsTimer.start()
+
     def connectionFinished(self):
         self.updateAvailablePortsTimer.stop()
         self.updateSettingsInUi()
@@ -252,12 +264,33 @@ class VolumeMixerWindow(QtWidgets.QMainWindow):
         self.statusBar.showMessage("Connected")
         self.portComboBox.setEnabled(False)
         self.hardwareSettingsGroupBox.setEnabled(True)
-        self.connectOnStartupCheckBox.setEnabled(True)
         self.updateThread = updateThread(self.volumeMixer)
         self.updateThread.updateError.connect(self.errorHandler)
         self.updateThread.disconnectSignal.connect(lambda: self.disconnect(False))
         self.updateThread.finished.connect(self.updateThread.deleteLater)
         self.updateThread.start()
+
+    def disconnect(self, refreshStrtusBar = True):
+        if self.volumeMixer.isConnected():
+            self.volumeMixer.disconnect()
+        if refreshStrtusBar:
+            self.statusBar.showMessage("Disconnected")
+        self.updateAvailablePortsTimer.start()
+        self.connectButton.setText("Connect")
+        self.portComboBox.setEnabled(True)
+        self.hardwareSettingsGroupBox.setEnabled(False)
+
+    def updateSettings(self):
+        settings = {self.volumeMixer.hardwareModuleUpdateIntervalIdentifier: round(self.updateIntervalSpinBox.value()*1000), "screenOn": bool(self.screenOnCheckBox.checkState()), "idleText":self.screenTextLineEdit.text()}
+        self.settingUpdateThread = settingUpdateThread(self.volumeMixer, settings)
+        self.settingUpdateThread.settingError.connect(self.errorHandler)
+        self.settingUpdateThread.settingUpdateFinished.connect(self.settingUpdateFinished)
+        self.settingUpdateThread.finished.connect(self.settingUpdateThread.deleteLater)
+        self.settingUpdateThread.start()
+
+    def settingUpdateFinished(self):
+        self.disableButtons()
+        self.statusBar.showMessage("Settings updated.")
 
     def updateSettingsInUi(self):
         self.updateIntervalSpinBox.blockSignals(True)
@@ -274,35 +307,6 @@ class VolumeMixerWindow(QtWidgets.QMainWindow):
     def enableButtons(self):
         self.applyButton.setEnabled(True)
         self.defaultsButton.setEnabled(True)
-
-    def disconnect(self, refreshStrtusBar = True):
-        if self.volumeMixer.isConnected():
-            self.volumeMixer.disconnect()
-        if refreshStrtusBar:
-            self.statusBar.showMessage("Disconnected")
-        self.updateAvailablePortsTimer.start()
-        self.connectButton.setText("Connect")
-        self.portComboBox.setEnabled(True)
-        self.hardwareSettingsGroupBox.setEnabled(False)
-        self.connectOnStartupCheckBox.setEnabled(False)
-    
-    def connectButtonAction(self):
-        if self.volumeMixer.isConnected():
-            self.disconnect()
-        else:
-            self.connect()
-        
-    def updateSettings(self):
-        settings = {self.volumeMixer.hardwareModuleUpdateIntervalIdentifier: round(self.updateIntervalSpinBox.value()*1000), "screenOn": bool(self.screenOnCheckBox.checkState()), "idleText":self.screenTextLineEdit.text()}
-        self.settingUpdateThread = settingUpdateThread(self.volumeMixer, settings)
-        self.settingUpdateThread.settingError.connect(self.errorHandler)
-        self.settingUpdateThread.settingUpdateFinished.connect(self.settingUpdateFinished)
-        self.settingUpdateThread.finished.connect(self.settingUpdateThread.deleteLater)
-        self.settingUpdateThread.start()
-
-    def settingUpdateFinished(self):
-        self.disableButtons()
-        self.statusBar.showMessage("Settings updated.")
     
     def errorHandler(self, error):
         self.statusBar.showMessage(error[1]+ ": " + error[2])
@@ -318,15 +322,55 @@ class VolumeMixerWindow(QtWidgets.QMainWindow):
         else:
             self.errorToTray.emit(error)
 
+    def loadWindowsSettings(self):
+        try:
+            self.windowsVolumeMixerSettings.loadSettings()
+        except Exception as error:
+            self.errorHandler((True, "Setting error", str(error)))
+
+    def changeWindowsSetting(self, settingName, value):
+        try:
+            updatedWindowsSettings = {}
+            updatedWindowsSettings[settingName] = value
+            self.windowsVolumeMixerSettings.settings.update(updatedWindowsSettings)
+            self.windowsVolumeMixerSettings.saveSettings()
+        except Exception as error:
+            self.errorHandler((True, "Setting error", str(error)))
+            return False
+        return True
+
     def applyWindowsSettings(self):
-        self.connectOnStartupCheckBox.setChecked(self.windowsVolumeMixerSettings.settings["connectionPort"].isalnum())# != "")
         self.startOnStartupCheckBox.setChecked(self.startupHandler.isOnStartup())
         self.startOnTrayCheckBox.setChecked(self.windowsVolumeMixerSettings.settings["startInTray"])
+        if not self.windowsVolumeMixerSettings.settings["startInTray"]:
+            self.show()
+            self.visibilityChanged.emit()
+        portSerialNumber = self.windowsVolumeMixerSettings.settings["connectionPort"]
+        port = self.getPort(portSerialNumber)
+        if port:
+            self.portComboBox.setCurrentText(port.description)
+            self.connect()
+        else:
+            self.updateAvailablePortsTimer.start()
 
     def startOnTrayChanged(self):
         if not self.changeWindowsSetting("startInTray", self.startOnTrayCheckBox.isChecked()):
             self.startOnTrayCheckBox.setChecked(not(self.startOnTrayCheckBox.isChecked()))
+    
+    def connectOnstartupChanged(self):
+        connectOnStartupChecked = self.connectOnStartupCheckBox.isChecked()
+        if connectOnStartupChecked:
+            currentPort = self.portComboBox.currentText()
+            portSerialNumber = self.getPort(currentPort).serial_number
+            self.changeWindowsSetting("connectionPort", portSerialNumber)
+        else:
+            self.changeWindowsSetting("connectionPort", "")
 
+    def setConnectOnStartupChecked(self):
+        portName = self.portComboBox.currentText()
+        port = self.getPort(portName)
+        self.connectOnStartupCheckBox.setChecked(bool(port and (port.serial_number == self.windowsVolumeMixerSettings.settings["connectionPort"])))
+            
     def startOnStartupChanged(self):
         startOnStartupChecked = self.startOnStartupCheckBox.isChecked()
         if startOnStartupChecked:
@@ -344,23 +388,6 @@ class VolumeMixerWindow(QtWidgets.QMainWindow):
                 self.startOnStartupCheckBox.setChecked(startOnStartupChecked) 
                 self.errorHandler((True, "Startup setting error", "Failed to remove from startup."))
 
-    def changeWindowsSetting(self, settingName, value):
-        try:
-            updatedWindowsSettings = {}
-            updatedWindowsSettings[settingName] = value
-            self.windowsVolumeMixerSettings.settings.update(updatedWindowsSettings)
-            self.windowsVolumeMixerSettings.saveSettings()
-        except Exception as error:
-            self.errorHandler((True, "Setting error", str(error)))
-            return False
-        return True
-    
-    def loadWindowsSettings(self):
-        try:
-            self.windowsVolumeMixerSettings.loadSettings()
-        except Exception as error:
-            self.errorHandler((True, "Setting error", str(error)))
-    
     def closeEvent(self, event):
         event.ignore()
         self.hide()
