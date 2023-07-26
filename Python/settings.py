@@ -18,7 +18,7 @@ class VolumeMixerSettings:
                 fileSettings = json.load(file)
                 self.settings.update(fileSettings)
         except FileNotFoundError:
-            return self.defaultSettings
+            return self.settings
         except json.JSONDecodeError:
             raise Exception("Error decoding settings file.")
         except Exception as e:
