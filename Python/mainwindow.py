@@ -1,5 +1,4 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-#from comtypes import CoInitialize, CoUninitialize
 import threads
 import volumemixer
 import startuphandler
