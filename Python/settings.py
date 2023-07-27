@@ -7,7 +7,6 @@ class VolumeMixerSettings:
             "supportedHardwareIds": [1],
             "connectionPort": "",
             "baudRate": 115200,
-            "onStartup": False,
             "startInTray": False,
             "inputTimeout": 0.5,
             "volumeUpdateInterval": 0.2

@@ -3,12 +3,6 @@ import serial.tools.list_ports
 
 def getAvailablePorts():
     ports = serial.tools.list_ports.comports()
-    #portNames = []
-    #for port in ports:
-    #    portNames.append(port.name)
-    #    print(port.description)
-    #    print(port.serial_number)
-    #return portNames
     return ports
 
 class serialCommunication():
