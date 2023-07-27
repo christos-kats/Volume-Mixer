@@ -1,6 +1,7 @@
 import os
-import shutil
-import winreg as reg
+import pythoncom
+import pywintypes
+from win32com.shell import shell, shellcon
 
 class StartupHandler:
     def __init__(self):
@@ -10,7 +11,7 @@ class StartupHandler:
         self.targetPath = os.path.join(startupFolder, shortcutName)
 
     def addToStartup(self):
-        shutil.copy(self.sourcePath, self.targetPath)
+        self.createShortcut(self.sourcePath, self.targetPath)
         print("addToStartup function called")
 
     def removeFromStartup(self):
@@ -20,3 +21,13 @@ class StartupHandler:
     def isOnStartup(self):
         print("isOnStartup function called and returned")
         return os.path.exists(self.targetPath)
+    
+    def createShortcut(self, sourcePath, targetPath):
+        shortcut = pythoncom.CoCreateInstance(
+            shell.CLSID_ShellLink, None,
+            pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink
+        )
+        shortcut.SetPath(sourcePath)
+
+        persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
+        persist_file.Save(targetPath, 0)
