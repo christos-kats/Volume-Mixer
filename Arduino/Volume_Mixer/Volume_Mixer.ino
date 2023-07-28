@@ -165,7 +165,7 @@ void receiveSerialData() {
 // ~~~~SELECTOR FUNCS~~~~ //
 
 void readSelectorButton() { //BUTTON FUNC
-  boolean selectButtonState = !selectorButton.read();
+  boolean selectButtonState = selectorButton.read();
   if (selectButtonState and !oldSelectButtonState) {
     buttonTime = millis();
     oldSelectButtonState = true;
@@ -259,7 +259,7 @@ void muteApp() {
 
 void refreshScreen() { //REFRESH LCD FOR DISPLAYING OTHER TEXT
   if (connectedToSerial) {
-    centerOnScreen(app, !volumeAdjust, 0, 20);
+    centerOnScreen(app.substring(0,16), !volumeAdjust, 0, 20);
     if (mute) {
       centerOnScreen("Mute", false, 1, 20);
     }
