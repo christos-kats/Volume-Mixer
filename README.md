@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Volume Mixer is a allows you to control the volume of individual applications on your computer using an Arduino with a rotary encoder and an LCD/OLED screen. The utility on the computer side is written in Python and leverages the pycaw and PyQt5 libraries to communicate with the Arduino and control application volumes.
+Volume Mixer allows you to control the volume of individual applications on your computer using an Arduino with a rotary encoder and an LCD/OLED screen. The utility on the computer side is written in Python and leverages the pycaw and PyQt5 libraries to communicate with the Arduino and control application volumes.
 
 ## Features
 
