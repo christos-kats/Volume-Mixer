@@ -25,6 +25,8 @@ Volume Mixer allows you to control the volume of individual applications on your
 - Python 3.x
 - `pycaw` library
 - `pyqt5` library
+- `pyserial` library
+- `pywin32` library
 
 #### Arduino requirements
 
