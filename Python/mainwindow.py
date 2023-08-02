@@ -147,6 +147,7 @@ class VolumeMixerWindow(QtWidgets.QMainWindow):
         self.startOnTrayCheckBox.clicked.connect(self.startOnTrayChanged)
         self.startOnStartupCheckBox.clicked.connect(self.startOnStartupChanged)
         self.updateAvailablePortsTimer.setInterval(500)
+        self.connectOnStartupCheckBox.setEnabled(False)
         self.getAvailablePorts()
         self.applyWindowsSettings()
         
@@ -157,6 +158,7 @@ class VolumeMixerWindow(QtWidgets.QMainWindow):
                 self.ports = ports
                 self.connectButton.setEnabled(bool(self.ports))
                 self.portComboBox.clear()
+                self.connectOnStartupCheckBox.setEnabled(self.ports!=[])
                 for port in self.ports:
                     self.portComboBox.addItem(port.description)
 
