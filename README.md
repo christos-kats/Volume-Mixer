@@ -13,10 +13,9 @@ Volume Mixer allows you to control the volume of individual applications on your
 
 ### Hardware Components
 
-- Arduino board (e.g., Arduino Uno, Arduino Nano)
-- Rotary Encoder
-- LCD/OLED screen (20x2)
-- Wires and breadboard for connections
+- Arduino board (using Arduino Uno R3)
+- Rotary Encoder (using WaveShare Rotation Sensor)
+- 20x2 LCD/OLED screen (using UC-2002ASWAS10)
 
 ### Software Dependencies
 
@@ -30,7 +29,7 @@ Volume Mixer allows you to control the volume of individual applications on your
 
 #### Arduino requirements
 
-- `Arduino_JSON` library (version 0.1.0)
+- `Arduino_JSON` library (version 0.1.0, installation using the Arduino library manager)
 - [`Rotary`](https://github.com/brianlow/Rotary) library
 - [`Debounce`](https://github.com/wkoch/Debounce) library
 
@@ -38,8 +37,30 @@ Volume Mixer allows you to control the volume of individual applications on your
 
 1. Clone the repository to your local machine.
 2. Install the required Python dependencies.
-3. Connect the hardware components (Arduino, rotary encoder, and OLED screen) as per the provided schematic.
+3. Connect the hardware components (Arduino, rotary encoder, and OLED screen) as per the table in [connections](#connections):
 4. Upload the Arduino sketch to your Arduino board using the Arduino IDE.
+
+## Connections
+
+This table shows the connections between Arduino pins and the corresponding components (OLED and Rotary Encoder). It may vary if using different hardware.
+
+| Arduino Pin | Connection                  |
+|-------------|-----------------------------|
+| 5V          | OLED VCC, Rotary 5V         |
+| GND         | OLED GND, OLED RW, Rotary GND|
+| 2           | Rotary SIA                  |
+| 3           | Rotary SIB                  |
+| 4           | OLED D6                     |
+| 5           | OLED D5                     |
+| 6           | OLED D4                     |
+| 7           | OLED D3                     |
+| 8           | OLED D2                     |
+| 9           | OLED D1                     |
+| 10          | OLED D0                     |
+| 11          | OLED ENABLE                 |
+| 12          | OLED RS                     |
+| A2          | Rotary SW                   |
+| A3          | OLED D7                     |
 
 ## Usage
 
@@ -52,5 +73,4 @@ Volume Mixer allows you to control the volume of individual applications on your
 7. Press the rotary encoder button again to select the desired application.
 8. Use the rotary encoder to adjust the volume for the selected application.
 9. Long-press the rotary encoder button for mute/unmute function.
-10. You can now adjust the volume of each individual app using the rotary encoder on the Arduino.
 
