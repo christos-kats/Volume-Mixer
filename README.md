@@ -31,8 +31,9 @@ Volume Mixer allows you to control the volume of individual applications on your
 #### Arduino requirements
 
 - `Arduino_JSON` library (version 0.1.0)
-- `Rotary` library
-- `Debounce` library
+- [`Rotary`](https://github.com/brianlow/Rotary)) library
+- [`Debounce`](https://github.com/wkoch/Debounce) library
+- 
 
 ## Installation
 
